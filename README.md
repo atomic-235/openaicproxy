@@ -1,8 +1,8 @@
 # OpenAI Proxy Server
 
-> **⚠️ Disclaimer**: This code is AI-generated slop that has been cobbled together with varying degrees of competence. While it appears to function to a certain extent for basic use cases, it should not be considered production-ready or thoroughly tested. Use at your own risk and expect potential issues, edge cases, and general weirdness. No guarantees are made about its reliability, security, or correctness.
+> **⚠️ DISCLAIMER**: CODE IS AI GENERATED SLOP, I DIDN'T HAVE TIME TO REFACTOR, BUT IT WORKS FOR ME.
 
-A FastAPI-based proxy server that acts as a middleware between OpenAI-compatible clients and the Venice.ai API. This proxy provides enhanced reliability with automatic retry logic, rate limit handling, and request/response transformation capabilities.
+A proxy server designed to bypass ISP restrictions and improve AI tool calling reliability. This proxy can be installed on your VPS in the cloud and used instead of Venice when Venice is not directly reachable. It's more convenient than constantly turning VPN on and off. The proxy also intercepts and fixes tool calls - for example, the Zed editor's Qwen Coder model doesn't pass parameters to tool calls properly, so I added a fix for that. You can add your own improvements. Additionally, it properly handles rate limit retries when retry headers are not handled correctly by the original service.
 
 ## Features
 
@@ -212,9 +212,13 @@ Enable debug logging by setting the log level:
 uvicorn proxy:app --log-level debug
 ```
 
+## GitHub Repository
+
+https://github.com/atomic-235/openaicproxy
+
 ## Contributing
 
-This is a standalone proxy server designed for Venice.ai API compatibility. Feel free to submit issues or enhancement requests.
+Feel free to submit issues or enhancement requests. You can add your own improvements to handle specific AI tool calling issues or other edge cases you encounter.
 
 ## License
 
