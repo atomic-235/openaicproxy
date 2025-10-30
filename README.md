@@ -4,6 +4,8 @@
 
 A proxy server designed to bypass ISP restrictions and improve AI tool calling reliability. This proxy can be installed on your VPS in the cloud and used instead of Venice when Venice is not directly reachable. It's more convenient than constantly turning VPN on and off. The proxy also intercepts and fixes tool calls - for example, the Zed editor's Qwen Coder model doesn't pass parameters to tool calls properly, so I added a fix for that. You can add your own improvements. Additionally, it properly handles rate limit retries when retry headers are not handled correctly by the original service.
 
+I've tested this proxy with Venice AI, but it should work with other OpenAI-compatible providers as well since it uses standard OpenAI API endpoints and response formats.
+
 ## Features
 
 - **Smart Retry Logic**: Exponential backoff with configurable retry attempts for handling rate limits and temporary failures
