@@ -65,6 +65,12 @@ export default {
     }
     const targetUrl = `https://api.venice.ai/api/v1${pathname}${url.search}`;
 
+    // Clone the request body to allow multiple attempts
+    let requestBody = null;
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      requestBody = await request.clone().text();
+    }
+
     // Try each token until one works
     let lastError = null;
     for (let i = 0; i < tokens.length; i++) {
@@ -83,7 +89,7 @@ export default {
         const response = await fetch(targetUrl, {
           method: request.method,
           headers,
-          body: request.body,
+          body: requestBody,
         });
 
         // If not rate limited, return the response (supports streaming)
