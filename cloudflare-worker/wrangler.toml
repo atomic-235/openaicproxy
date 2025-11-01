@@ -1,0 +1,6 @@
+name = "venice-proxy"
+main = "index.js"
+compatibility_date = "2023-12-01"
+
+[[env.production.vars]]
+ENVIRONMENT = "production"
