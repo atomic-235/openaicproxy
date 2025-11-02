@@ -92,8 +92,8 @@ export default {
           body: requestBody,
         });
 
-        // If not rate limited, return the response (supports streaming)
-        if (response.status !== 429) {
+        // If successful (2xx status), return the response (supports streaming)
+        if (response.status >= 200 && response.status < 300) {
           // Transform response headers to be OpenAI-compatible
           const responseHeaders = new Headers(response.headers);
           responseHeaders.set("Access-Control-Allow-Origin", "*");
@@ -121,9 +121,11 @@ export default {
           });
         }
 
-        // If rate limited, try next token
-        console.log(`Token ${i + 1} rate limited, trying next token`);
-        lastError = `Token ${i + 1} rate limited`;
+        // If request failed, try next token
+        console.log(
+          `Token ${i + 1} failed with status ${response.status}, trying next token`,
+        );
+        lastError = `Token ${i + 1} failed with status ${response.status}`;
       } catch (error) {
         console.log(`Token ${i + 1} failed:`, error.message);
         lastError = `Token ${i + 1} failed: ${error.message}`;
