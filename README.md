@@ -218,6 +218,34 @@ echo "sk-venice-$(date +%s)"
 | **Cost** | $5-20/month | Free tier covers most |
 | **Uptime** | Server-dependent | 99.99%+ (Cloudflare) |
 
+## 🧪 Testing
+
+You can test your proxy deployment using the provided test suite:
+
+```bash
+# Navigate to the cloudflare-worker directory
+cd cloudflare-worker
+
+# Set your API key
+export PROXY_API_KEY=your-api-key-here
+
+# Run all tests
+npm test
+
+# Run only token rotation tests
+npm run test:rotation
+```
+
+The test suite verifies:
+- Health endpoint functionality
+- Non-streaming chat completions
+- Streaming chat completions
+- Specific model support (GLM-4 with parameters)
+- Token rotation and rate limit handling
+- Authentication error handling
+
+See `cloudflare-worker/test/README.md` for more details.
+
 ## 🐛 Troubleshooting
 
 ### Common Issues

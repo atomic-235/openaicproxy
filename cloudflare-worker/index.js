@@ -1,154 +1,97 @@
-// OpenAI-Compatible Venice.ai Proxy with Token Rotation and Authentication
+// Simplified OpenAI-Compatible Venice.ai Proxy
 export default {
   async fetch(request, env) {
-    // Get tokens and API key from environment variables
-    const tokens = env.OPENAI_TOKENS ? env.OPENAI_TOKENS.split(",") : [];
+    const tokens = env.OPENAI_TOKENS?.split(",") || [];
     const proxyApiKey = env.PROXY_API_KEY;
 
     if (tokens.length === 0) {
-      return new Response(
-        JSON.stringify({
-          error: "No tokens configured",
-          type: "internal_error",
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      return jsonResponse({ error: "No tokens configured" }, 500);
     }
 
     const url = new URL(request.url);
 
-    // Health check endpoint (no auth required)
+    // Health check
     if (url.pathname === "/health") {
-      return new Response(
-        JSON.stringify({
-          status: "healthy",
-          tokens_count: tokens.length,
-          target: "https://api.venice.ai/api/v1",
-          auth_enabled: !!proxyApiKey,
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      return jsonResponse({
+        status: "healthy",
+        tokens_count: tokens.length,
+      });
     }
 
-    // Require API key for all other endpoints
+    // Check API key if configured
     if (proxyApiKey) {
-      const authHeader = request.headers.get("Authorization");
-      const providedKey = authHeader?.replace("Bearer ", "");
-
+      const providedKey = request.headers
+        .get("Authorization")
+        ?.replace("Bearer ", "");
       if (providedKey !== proxyApiKey) {
-        return new Response(
-          JSON.stringify({
+        return jsonResponse(
+          {
             error: {
               message: "Invalid API key",
               type: "invalid_request_error",
-              code: "invalid_api_key",
             },
-          }),
-          {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
           },
+          401,
         );
       }
     }
 
-    // Build target URL - proxy to Venice.ai API endpoints
-    // Remove the /v1 prefix if present to avoid double /v1
-    let pathname = url.pathname;
-    if (pathname.startsWith("/v1")) {
-      pathname = pathname.substring(3);
-    }
+    // Build Venice API URL
+    const pathname = url.pathname.replace(/^\/v1/, "");
     const targetUrl = `https://api.venice.ai/api/v1${pathname}${url.search}`;
 
-    // Clone the request body to allow multiple attempts
-    let requestBody = null;
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      requestBody = await request.clone().text();
-    }
+    // Get request body once
+    const body =
+      request.method !== "GET" && request.method !== "HEAD"
+        ? await request.text()
+        : null;
 
-    // Try each token until one works
-    let lastError = null;
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i].trim();
-      const headers = new Headers(request.headers);
-
-      // Remove the proxy auth header and add Venice token
-      headers.delete("Authorization");
-      headers.set("Authorization", `Bearer ${token}`);
-
-      // Remove any OpenAI-specific headers that Venice might not support
-      headers.delete("OpenAI-Organization");
-      headers.delete("OpenAI-Project");
-
+    // Try each token
+    for (const token of tokens) {
       try {
         const response = await fetch(targetUrl, {
           method: request.method,
-          headers,
-          body: requestBody,
+          headers: {
+            Authorization: `Bearer ${token.trim()}`,
+            "Content-Type": "application/json",
+          },
+          body,
         });
 
-        // If successful (2xx status), return the response (supports streaming)
-        if (response.status >= 200 && response.status < 300) {
-          // Transform response headers to be OpenAI-compatible
-          const responseHeaders = new Headers(response.headers);
-          responseHeaders.set("Access-Control-Allow-Origin", "*");
-          responseHeaders.set(
-            "Access-Control-Allow-Methods",
-            "GET, POST, PUT, DELETE, OPTIONS",
-          );
-          responseHeaders.set(
-            "Access-Control-Allow-Headers",
-            "Content-Type, Authorization",
-          );
-
-          // Handle CORS preflight
-          if (request.method === "OPTIONS") {
-            return new Response(null, {
-              status: 200,
-              headers: responseHeaders,
-            });
-          }
-
+        if (response.ok) {
           return new Response(response.body, {
             status: response.status,
-            statusText: response.statusText,
-            headers: responseHeaders,
+            headers: {
+              ...Object.fromEntries(response.headers),
+              "Access-Control-Allow-Origin": "*",
+            },
           });
         }
-
-        // If request failed, try next token
-        console.log(
-          `Token ${i + 1} failed with status ${response.status}, trying next token`,
-        );
-        lastError = `Token ${i + 1} failed with status ${response.status}`;
       } catch (error) {
-        console.log(`Token ${i + 1} failed:`, error.message);
-        lastError = `Token ${i + 1} failed: ${error.message}`;
-        // Continue to next token
+        console.error("Token failed:", error.message);
       }
     }
 
-    // All tokens failed - return OpenAI-compatible error
-    return new Response(
-      JSON.stringify({
+    // All tokens failed
+    return jsonResponse(
+      {
         error: {
-          message: `All tokens failed. Last error: ${lastError}`,
+          message: "All tokens failed",
           type: "api_error",
           code: "rate_limit_exceeded",
         },
-      }),
-      {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
       },
+      429,
     );
   },
 };
+
+function jsonResponse(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}

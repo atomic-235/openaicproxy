@@ -7,7 +7,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:staging": "wrangler deploy --env staging",
-    "deploy:production": "wrangler deploy --env production"
+    "deploy:production": "wrangler deploy --env production",
+    "test": "node test/run-tests.js",
+    "test:rotation": "node test/run-token-rotation.js"
   },
   "keywords": [
     "openai",
@@ -19,6 +21,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "wrangler": "^3.0.0"
+    "wrangler": "^3.0.0",
+    "node-fetch": "^2.7.0"
   }
 }
