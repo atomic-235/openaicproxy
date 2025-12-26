@@ -80,7 +80,7 @@ wrangler deploy --env=""
 
 ## 🔧 Endpoints
 
-### Health Check
+### Health Check (No Auth)
 
 ```bash
 curl https://venice-proxy.openaicproxy.workers.dev/health
@@ -125,9 +125,9 @@ curl https://venice-proxy.openaicproxy.workers.dev/v1/chat/completions \
 ## 🛡️ Security
 
 ### Authentication
-- All API endpoints require a valid API key
+- All `/v1/*` API endpoints require a valid API key (`/health` is public)
 - OpenAI-compatible authentication header: `Authorization: Bearer YOUR_KEY`
-- Invalid keys return standard OpenAI error format
+- Invalid/missing keys return standard OpenAI error format
 
 ### Token Security
 - Venice.ai tokens stored in Cloudflare's encrypted secret store

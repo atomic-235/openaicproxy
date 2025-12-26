@@ -23,30 +23,44 @@ export default {
       });
     }
 
-    // Health check
+    // Health check (no auth required)
     if (url.pathname === "/health") {
       return jsonResponse({
         status: "healthy",
         tokens_count: tokens.length,
+        target: "https://api.venice.ai/api/v1",
+        auth_enabled: Boolean(proxyApiKey),
       });
     }
 
-    // Check API key if configured
-    if (proxyApiKey) {
-      const providedKey = request.headers
-        .get("Authorization")
-        ?.replace("Bearer ", "");
-      if (providedKey !== proxyApiKey) {
-        return jsonResponse(
-          {
-            error: {
-              message: "Invalid API key",
-              type: "invalid_request_error",
-            },
+    // Proxy auth is required for all non-health endpoints
+    if (!proxyApiKey) {
+      return jsonResponse(
+        {
+          error: {
+            message: "Proxy API key not configured",
+            type: "server_error",
           },
-          401,
-        );
-      }
+        },
+        500,
+      );
+    }
+
+    const authHeader = request.headers.get("Authorization") || "";
+    const providedKey = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null;
+
+    if (!providedKey || providedKey !== proxyApiKey) {
+      return jsonResponse(
+        {
+          error: {
+            message: "Invalid API key",
+            type: "invalid_request_error",
+          },
+        },
+        401,
+      );
     }
 
     // Build Venice API URL

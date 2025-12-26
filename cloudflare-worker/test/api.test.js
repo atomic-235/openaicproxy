@@ -100,8 +100,34 @@ async function runTests() {
       `✅ Completed ${results.length} requests for token rotation test`,
     );
 
-    // Test 7: Authentication error (wrong API key)
-    console.log("🧪 Test 7: Authentication Error");
+    // Test 7: Authentication error (missing API key)
+    console.log("🧪 Test 7: Authentication Error (Missing API Key)");
+    const missingAuthResponse = await fetch(`${API_BASE_URL}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "qwen3-235b",
+        messages: [{ role: "user", content: "Hello" }],
+      }),
+    });
+
+    console.log(
+      "✅ Missing auth status (should be 401):",
+      missingAuthResponse.status,
+    );
+    if (missingAuthResponse.status === 401) {
+      const errorData = await missingAuthResponse.json();
+      console.log(
+        "📋 Missing auth response:",
+        JSON.stringify(errorData, null, 2),
+      );
+    }
+    console.log("");
+
+    // Test 8: Authentication error (wrong API key)
+    console.log("🧪 Test 8: Authentication Error (Wrong API Key)");
     const authErrorResponse = await fetch(
       `${API_BASE_URL}/v1/chat/completions`,
       {
@@ -118,13 +144,13 @@ async function runTests() {
     );
 
     console.log(
-      "✅ Auth error status (should be 401):",
+      "✅ Wrong key status (should be 401):",
       authErrorResponse.status,
     );
     if (authErrorResponse.status === 401) {
       const errorData = await authErrorResponse.json();
       console.log(
-        "📋 Auth error response:",
+        "📋 Wrong key response:",
         JSON.stringify(errorData, null, 2),
       );
     }
