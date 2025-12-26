@@ -62,7 +62,7 @@ export default {
       try {
         const parsed = JSON.parse(body);
         isStreaming = parsed.stream === true;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Try each token
