@@ -64,7 +64,87 @@ export default {
     }
 
     // Build Venice API URL
-    const pathname = url.pathname.replace(/^\/v1/, "");
+    let pathname = url.pathname.replace(/^\/v1/, "");
+
+    // Some clients probe the API root with `GET /v1` and expect a list-shaped
+    // OpenAI JSON response containing a top-level `data` field.
+    // Map `GET /v1` to the OpenAI-compatible `/v1/models` response.
+    if (request.method === "GET" && (url.pathname === "/v1" || url.pathname === "/v1/")) {
+      pathname = "/models";
+    }
+
+    // OpenAI-compatible models endpoint
+    // - GET /v1/models returns { object: "list", data: [{id, object, created, owned_by}, ...] }
+    if (request.method === "GET" && pathname === "/models") {
+      let lastModelsError = null;
+      let lastModelsErrorStatus = 500;
+
+      for (const token of tokens) {
+        try {
+          const response = await fetch(`https://api.venice.ai/api/v1/models${url.search}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token.trim()}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!response.ok) {
+            lastModelsErrorStatus = response.status;
+            try {
+              lastModelsError = await response.json();
+            } catch (e) {
+              lastModelsError = {
+                error: {
+                  message: response.statusText || "Unknown error",
+                  type: "api_error",
+                },
+              };
+            }
+            continue;
+          }
+
+          const veniceData = await response.json();
+          const models = Array.isArray(veniceData?.data) ? veniceData.data : [];
+
+          const openaiModels = models.map((model) => ({
+            id: model.id,
+            object: "model",
+            created: model.created,
+            owned_by: "venice",
+          }));
+
+          const headers = new Headers(response.headers);
+          headers.set("Access-Control-Allow-Origin", "*");
+
+          return new Response(JSON.stringify({ object: "list", data: openaiModels }), {
+            status: 200,
+            headers,
+          });
+        } catch (error) {
+          lastModelsError = {
+            error: {
+              message: error.message,
+              type: "api_error",
+              code: "exception_error",
+            },
+          };
+          lastModelsErrorStatus = 500;
+        }
+      }
+
+      return jsonResponse(
+        lastModelsError || {
+          error: {
+            message: "All tokens failed",
+            type: "api_error",
+            code: "rate_limit_exceeded",
+          },
+        },
+        lastModelsErrorStatus,
+      );
+    }
+
     const targetUrl = `https://api.venice.ai/api/v1${pathname}${url.search}`;
 
     // Get request body once and check if it's a streaming request

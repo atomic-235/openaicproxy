@@ -69,8 +69,30 @@ async function runTests() {
       "GLM-4 Model Streaming",
     );
 
-    // Test 6: Token rotation simulation
-    console.log("🧪 Test 6: Token Rotation Simulation");
+    // Test 6: Models endpoint
+    console.log("🧪 Test 6: Models Endpoint");
+    const modelsResponse = await fetch(`${API_BASE_URL}/v1/models`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+      },
+    });
+
+    console.log("✅ Models status (should be 200):", modelsResponse.status);
+    const modelsText = await modelsResponse.text();
+    try {
+      const modelsData = JSON.parse(modelsText);
+      console.log(
+        "✅ Models list count:",
+        Array.isArray(modelsData.data) ? modelsData.data.length : 0,
+      );
+    } catch (e) {
+      console.log("❌ Models response not JSON:", modelsText.substring(0, 200));
+    }
+    console.log("");
+
+    // Test 7: Token rotation simulation
+    console.log("🧪 Test 7: Token Rotation Simulation");
 
     // Make multiple rapid requests to test token rotation
     const promises = [];
