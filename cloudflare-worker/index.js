@@ -156,6 +156,18 @@ export default {
       try {
         const parsed = JSON.parse(body);
         isStreaming = parsed.stream === true;
+
+        // Transform camelCase keys to snake_case for Venice.ai compatibility
+        // Venice supports prompt_cache_key for prompt caching optimization
+        let modified = false;
+        if ("promptCacheKey" in parsed) {
+          parsed.prompt_cache_key = parsed.promptCacheKey;
+          delete parsed.promptCacheKey;
+          modified = true;
+        }
+        if (modified) {
+          body = JSON.stringify(parsed);
+        }
       } catch (e) { }
     }
 
