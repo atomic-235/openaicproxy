@@ -73,8 +73,7 @@ export default {
       pathname = "/models";
     }
 
-    // OpenAI-compatible models endpoint
-    // - GET /v1/models returns { object: "list", data: [{id, object, created, owned_by}, ...] }
+    // Models endpoint - pass through Venice response as-is
     if (request.method === "GET" && pathname === "/models") {
       let lastModelsError = null;
       let lastModelsErrorStatus = 500;
@@ -104,21 +103,11 @@ export default {
             continue;
           }
 
-          const veniceData = await response.json();
-          const models = Array.isArray(veniceData?.data) ? veniceData.data : [];
-
-          const openaiModels = models.map((model) => ({
-            id: model.id,
-            object: "model",
-            created: model.created,
-            owned_by: "venice",
-          }));
-
           const headers = new Headers(response.headers);
           headers.set("Access-Control-Allow-Origin", "*");
 
-          return new Response(JSON.stringify({ object: "list", data: openaiModels }), {
-            status: 200,
+          return new Response(response.body, {
+            status: response.status,
             headers,
           });
         } catch (error) {
@@ -165,6 +154,23 @@ export default {
           delete parsed.promptCacheKey;
           modified = true;
         }
+
+        // Filter out invalid assistant messages (must have content or tool_calls)
+        if (Array.isArray(parsed.messages)) {
+          const originalLength = parsed.messages.length;
+          parsed.messages = parsed.messages.filter((msg) => {
+            if (msg.role !== "assistant") return true;
+            // Assistant messages must have content or tool_calls
+            return msg.content || msg.tool_calls;
+          });
+          if (parsed.messages.length !== originalLength) {
+            console.log(
+              `Filtered out ${originalLength - parsed.messages.length} invalid assistant messages from request`,
+            );
+            modified = true;
+          }
+        }
+
         if (modified) {
           body = JSON.stringify(parsed);
         }
@@ -280,21 +286,47 @@ export default {
               );
               continue;
             }
+
+            // Filter out invalid choices (assistant messages without content or tool_calls)
+            if (data.choices && Array.isArray(data.choices)) {
+              const validChoices = data.choices.filter((choice) => {
+                const msg = choice.message;
+                if (!msg) return false;
+                // Assistant message must have content or tool_calls
+                return msg.content || msg.tool_calls;
+              });
+
+              if (validChoices.length !== data.choices.length) {
+                console.log(
+                  `Filtered out ${data.choices.length - validChoices.length} invalid choices`,
+                );
+              }
+
+              if (validChoices.length === 0) {
+                console.log(
+                  "No valid choices after filtering, trying next token",
+                );
+                continue;
+              }
+
+              data.choices = validChoices;
+            }
+
+            return new Response(JSON.stringify(data), {
+              status: response.status,
+              statusText: response.statusText,
+              headers,
+            });
           } catch (e) {
             console.log("Invalid JSON response, trying next token:", e.message);
             continue;
           }
-
-          return new Response(text, {
-            status: response.status,
-            statusText: response.statusText,
-            headers,
-          });
         }
 
         // Store the actual error response for this token
         try {
           const errorText = await response.text();
+          console.log(`Error response from Venice (${response.status}): ${errorText.substring(0, 500)}`);
           lastError = JSON.parse(errorText);
           lastErrorStatus = response.status;
         } catch (e) {
