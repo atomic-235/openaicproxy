@@ -416,21 +416,25 @@ export default {
           lastError = JSON.parse(errorText);
           lastErrorStatus = response.status;
         } catch (e) {
-          lastError = {
+        lastError = {
+          error: {
             message: response.statusText || "Unknown error",
             type: "api_error",
             code: "unknown_error",
-          };
+          },
+        };
           lastErrorStatus = response.status;
         }
         console.log(`Non-OK status ${response.status}, trying next token`);
       } catch (error) {
         console.error("Token failed with exception:", error.message);
-        lastError = {
+      lastError = {
+        error: {
           message: error.message,
           type: "api_error",
           code: "exception_error",
-        };
+        },
+      };
         lastErrorStatus = 500;
       }
     }
@@ -438,9 +442,11 @@ export default {
     // All tokens failed - return the last actual error
     return jsonResponse(
       lastError || {
-        message: "All tokens failed",
-        type: "api_error",
-        code: "rate_limit_exceeded",
+        error: {
+          message: "All tokens failed",
+          type: "api_error",
+          code: "rate_limit_exceeded",
+        },
       },
       lastErrorStatus,
     );
