@@ -136,6 +136,92 @@ export default {
 
     const targetUrl = `https://api.venice.ai/api/v1${pathname}${url.search}`;
 
+    // Audio transcriptions endpoint - handles multipart/form-data
+    if (request.method === "POST" && pathname === "/audio/transcriptions") {
+      const contentType = request.headers.get("Content-Type") || "";
+      
+      // Must be multipart/form-data for file uploads
+      if (!contentType.includes("multipart/form-data")) {
+        return jsonResponse(
+          {
+            error: {
+              message: "Content-Type must be multipart/form-data for audio transcriptions",
+              type: "invalid_request_error",
+            },
+          },
+          400,
+        );
+      }
+
+      // Get the raw body to forward
+      const audioBody = await request.arrayBuffer();
+      let lastTranscriptionError = null;
+      let lastTranscriptionErrorStatus = 500;
+
+      for (const token of tokens) {
+        try {
+          const response = await fetch(`https://api.venice.ai/api/v1/audio/transcriptions`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token.trim()}`,
+              "Content-Type": contentType, // Preserve the boundary
+            },
+            body: audioBody,
+          });
+
+          console.log(`Audio transcription attempt - Status: ${response.status}`);
+
+          if (response.ok) {
+            const headers = new Headers(response.headers);
+            headers.set("Access-Control-Allow-Origin", "*");
+
+            // Return the response directly (could be JSON or text depending on response_format)
+            return new Response(response.body, {
+              status: response.status,
+              headers,
+            });
+          }
+
+          // Store error and try next token
+          try {
+            const errorText = await response.text();
+            console.log(`Audio transcription error (${response.status}): ${errorText.substring(0, 500)}`);
+            lastTranscriptionError = JSON.parse(errorText);
+            lastTranscriptionErrorStatus = response.status;
+          } catch (e) {
+            lastTranscriptionError = {
+              error: {
+                message: response.statusText || "Unknown error",
+                type: "api_error",
+              },
+            };
+            lastTranscriptionErrorStatus = response.status;
+          }
+        } catch (error) {
+          console.error("Audio transcription token failed with exception:", error.message);
+          lastTranscriptionError = {
+            error: {
+              message: error.message,
+              type: "api_error",
+              code: "exception_error",
+            },
+          };
+          lastTranscriptionErrorStatus = 500;
+        }
+      }
+
+      return jsonResponse(
+        lastTranscriptionError || {
+          error: {
+            message: "All tokens failed",
+            type: "api_error",
+            code: "rate_limit_exceeded",
+          },
+        },
+        lastTranscriptionErrorStatus,
+      );
+    }
+
     // Get request body once and check if it's a streaming request
     let body = null;
     let isStreaming = false;
