@@ -21,7 +21,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "wrangler": "^3.0.0",
+    "wrangler": "^4.151.2",
     "node-fetch": "^2.7.0"
   }
 }
